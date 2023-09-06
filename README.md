@@ -13,7 +13,7 @@ Allows you to use developer tools on websites which utilize anti-debug technique
 2. console.log is overridden to filter DOM elements, functions, and objects with custom getters
 3. Functions containing debugger calls are removed
 4. setInterval checks for anti debugging scripts
-~~5. `resize` event is removed~~ (Only prints for now)
+5. ~~`resize` event is removed~~ (Only prints for now)
 
 Please report any issues to the Github:
 https://github.com/Andrews54757/Anti-Anti-Debug/issues
