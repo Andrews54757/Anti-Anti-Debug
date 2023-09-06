@@ -1,22 +1,25 @@
 !(() => {
     console.log("Anti-anti-debug loaded! Happy debugging!")
-    var _createElement = document.createElement;
-    document.createElement = function (el, o) {
-        var string = el.toString();
-        var element = _createElement.apply(document, [string, o]);
-        if (string.toLowerCase() == "iframe") {
-            element.addEventListener("load", () => {
-                try {
-                    element.contentWindow.window.console = window.console;
-                } catch (e) {
 
-                }
-            });
-        }
-        return element;
+    /**
+     * Save original methods before we override them
+     */
+    const originals = {
+        createElement: document.createElement,
+        log: console.log,
+        table: console.table,
+        clear: console.clear,
+        functionConstructor: window.Function.prototype.constructor,
+        setInterval: window.setInterval,
+        createElement: document.createElement,
+        toString: Function.prototype.toString,
+        addEventListener: window.addEventListener
     }
 
-    let cutoffs = {
+    /**
+     * Cutoffs for logging. After cutoff is reached, will no longer log anti debug warnings.
+     */
+    const cutoffs = {
         table: {
             amount: 5,
             within: 5000
@@ -32,15 +35,12 @@
         debugger: {
             amount: 10,
             within: 10000
-        },
-        interval: {
-            amount: 10,
-            within: 10000
         }
     }
 
-    var _log = window.console.log;
- 
+    /**
+     * Decides if anti debug warnings should be logged
+     */
     function shouldLog(type) {
         const cutoff = cutoffs[type];
         if (cutoff.tripped) return false;
@@ -56,7 +56,7 @@
         cutoff.current++;
 
         if (cutoff.current > cutoff.amount) {
-            _log("Limit reached! Will now ignore " + type)
+            originals.log("Limit reached! Will now ignore " + type)
             cutoff.tripped = true;
             return false;
         }
@@ -64,23 +64,33 @@
         return true;
     }
 
-    window.console.log = function () {
-        var args = Array.from(arguments);
-
+    window.console.log = function (...args) {
+        // Keep track of redacted arguments
         let redactedCount = 0;
+
+        // Filter arguments for detectors
         const newArgs = args.map((a) => {
 
+            // Don't print functions.
             if (typeof a === 'function') {
                 redactedCount++;
                 return "Redacted Function";
             }
+
+            // Passthrough if primitive
             if (typeof a !== 'object' || a === null) return a;
+
+            // For objects, scan properties
             var props = Object.getOwnPropertyDescriptors(a)
             for (var name in props) {
+                
+                // Redact custom getters
                 if (props[name].get !== undefined) {
                     redactedCount++;
-                    return "Redacted";
+                    return "Redacted Getter";
                 }
+
+                // Also block toString overrides
                 if (name === 'toString') {
                     redactedCount++;
                     return "Redacted Str";
@@ -91,69 +101,81 @@
             // https://github.com/theajack/disable-devtool/blob/master/src/detector/sub-detector/performance.ts
             if (Array.isArray(a) && a.length === 50 && typeof a[0] === "object") {
                 redactedCount++;
-                return "Redacted ObjArray";
+                return "Redacted LargeObjArray";
             }
 
             return a;
         });
 
+        // If most arguments are redacted, its probably spam
         if (redactedCount >= Math.max(args.length - 1, 1)) {
             if (!shouldLog("redactedLog")) {
                 return;
             }
         }
 
-        _log.apply(console, newArgs)
+        originals.log.apply(console, newArgs)
     }
    
     window.console.table = function (obj) {
         if (shouldLog("table")) {
-            _log("Redacted table");
+            originals.log("Redacted table");
         }
     }
 
     window.console.clear = function () {
         if (shouldLog("table")) {
-            _log("Prevented clear");
+            originals.log("Prevented clear");
         }
     }
 
-    var _constructor = window.Function.prototype.constructor;
-    // Hook Function.prototype.constructor
-    window.Function.prototype.constructor = function () {
-        var fnContent = arguments[0];
+    window.Function.prototype.constructor = function (...args) {
+        var fnContent = args[0];
         if (fnContent) {
             if (fnContent.includes('debugger')) { // An anti-debugger is attempting to stop debugging
                 if (shouldLog("debugger")) {
-                    _log("Prevented debugger");
+                    originals.log("Prevented debugger");
                 }
-                return (function () { });
+                args[0] = args[0].replaceAll("debugger",""); // remove debugger statements
             }
         }
-        // Execute the normal function constructor if nothing unusual is going on
-        return _constructor.apply(this, arguments);
-    };
-    window.Function.prototype.constructor.prototype = _constructor.prototype;
+        return originals.functionConstructor.apply(this, args);
+    }
 
-    const oldSetInterval = window.setInterval;
-    const nativeToString = Function.prototype.toString;
-    window.setInterval = function (fn, ...args) {
-        const string = nativeToString.apply(fn);
+    window.Function.prototype.constructor.prototype = originals.constructor.prototype;
 
+    window.setInterval = function (...args) {
+        const string = originals.toString.apply(args[0]);
         // Regexp tests for https://github.com/theajack/disable-devtool
         if (/if.*;try.*=.*catch.*\(.*\).*finally.*==.*typeof/.test(string)) {
-            if (shouldLog("interval")) {
-                _log("Prevented anti-debug interval (matched regexp)");
-            }
-            return;
-        } else
-        if (string.includes('debugger')) {
-            if (shouldLog("debugger")) {
-                _log("Prevented debugger");
-            }
+               originals.log("Prevented anti-debug interval (matched regexp)", {
+                    fnString: string
+               });
             return;
         }
-        return oldSetInterval(fn, ...args);
+        return originals.setInterval.apply(window, args);
+    }
+
+    window.addEventListener = function(...args) {
+        if (args[0] === "resize") {
+            originals.log("Prevented resize event listener");
+        }
+        return originals.addEventListener.apply(window, args);
+    }
+
+    document.createElement = function (el, o) {
+        var string = el.toString();
+        var element = originals.createElement.apply(document, [string, o]);
+        if (string.toLowerCase() === "iframe") {
+            element.addEventListener("load", () => {
+                try {
+                    element.contentWindow.window.console = window.console;
+                } catch (e) {
+
+                }
+            });
+        }
+        return element;
     }
 })()
 
