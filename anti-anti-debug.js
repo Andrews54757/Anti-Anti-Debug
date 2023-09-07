@@ -155,14 +155,7 @@
         }
         return originals.setInterval.apply(window, args);
     }
-
-    window.addEventListener = function(...args) {
-        if (args[0] === "resize") {
-            originals.log("Prevented resize event listener");
-        }
-        return originals.addEventListener.apply(window, args);
-    }
-
+    
     document.createElement = function (el, o) {
         var string = el.toString();
         var element = originals.createElement.apply(document, [string, o]);

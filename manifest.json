@@ -2,7 +2,7 @@
     "manifest_version": 3,
     "name": "Anti Anti Debug",
     "description": "Be able to use developer tools again",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "author": "Andrew S",
     "icons": {
         "16": "debug-16.png",
@@ -34,5 +34,11 @@
                 "<all_urls>"
             ]
         }
-    ]
+    ],
+    "browser_specific_settings": {
+        "gecko": {
+          "id": "anti-anti-debug@andrews",
+          "strict_min_version": "109.0"
+        }
+    }
 }
