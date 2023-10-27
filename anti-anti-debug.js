@@ -4,7 +4,7 @@
     /**
      * Save original methods before we override them
      */
-    const originals = {
+    const Originals = {
         createElement: document.createElement,
         log: console.log,
         table: console.table,
@@ -56,7 +56,7 @@
         cutoff.current++;
 
         if (cutoff.current > cutoff.amount) {
-            originals.log("Limit reached! Will now ignore " + type)
+            Originals.log("Limit reached! Will now ignore " + type)
             cutoff.tripped = true;
             return false;
         }
@@ -64,7 +64,7 @@
         return true;
     }
 
-    window.console.log = function (...args) {
+    window.console.log = wrapFn((...args) => {
         // Keep track of redacted arguments
         let redactedCount = 0;
 
@@ -83,7 +83,7 @@
             // For objects, scan properties
             var props = Object.getOwnPropertyDescriptors(a)
             for (var name in props) {
-                
+
                 // Redact custom getters
                 if (props[name].get !== undefined) {
                     redactedCount++;
@@ -114,51 +114,49 @@
             }
         }
 
-        originals.log.apply(console, newArgs)
-    }
-   
-    window.console.table = function (obj) {
-        if (shouldLog("table")) {
-            originals.log("Redacted table");
-        }
-    }
+        return Originals.log.apply(console, newArgs)
+    }, Originals.log);
 
-    window.console.clear = function () {
+    window.console.table = wrapFn((obj) => {
         if (shouldLog("table")) {
-            originals.log("Prevented clear");
+            Originals.log("Redacted table");
         }
-    }
+    }, Originals.table);
 
-    window.Function.prototype.constructor = function (...args) {
+    window.console.clear = wrapFn(() => {
+        if (shouldLog("table")) {
+            Originals.log("Prevented clear");
+        }
+    }, Originals.clear);
+
+    window.Function.prototype.constructor = wrapFn((...args) => {
         var fnContent = args[0];
         if (fnContent) {
             if (fnContent.includes('debugger')) { // An anti-debugger is attempting to stop debugging
                 if (shouldLog("debugger")) {
-                    originals.log("Prevented debugger");
+                    Originals.log("Prevented debugger");
                 }
-                args[0] = args[0].replaceAll("debugger",""); // remove debugger statements
+                args[0] = args[0].replaceAll("debugger", ""); // remove debugger statements
             }
         }
-        return originals.functionConstructor.apply(this, args);
-    }
+        return Originals.functionConstructor.apply(this, args);
+    }, Originals.functionConstructor);
 
-    window.Function.prototype.constructor.prototype = originals.constructor.prototype;
-
-    window.setInterval = function (...args) {
-        const string = originals.toString.apply(args[0]);
+    window.setInterval = wrapFn((...args) => {
+        const string = Originals.toString.apply(args[0]);
         // Regexp tests for https://github.com/theajack/disable-devtool
         if (/if.*;try.*=.*catch.*\(.*\).*finally.*==.*typeof/.test(string)) {
-               originals.log("Prevented anti-debug interval (matched regexp)", {
-                    fnString: string
-               });
+            Originals.log("Prevented anti-debug interval (matched regexp)", {
+                fnString: string
+            });
             return;
         }
-        return originals.setInterval.apply(window, args);
-    }
-    
-    document.createElement = function (el, o) {
+        return Originals.setInterval.apply(window, args);
+    }, Originals.setInterval);
+
+    document.createElement = wrapFn((el, o) => {
         var string = el.toString();
-        var element = originals.createElement.apply(document, [string, o]);
+        var element = Originals.createElement.apply(document, [string, o]);
         if (string.toLowerCase() === "iframe") {
             element.addEventListener("load", () => {
                 try {
@@ -169,6 +167,17 @@
             });
         }
         return element;
+    }, Originals.createElement);
+
+    function wrapFn(newFn, old) {
+        return new Proxy(newFn, {
+            get: function (target, prop) {
+                const callMethods = ['apply', 'bind', 'call'];
+                if (callMethods.includes(prop)) {
+                    return target[prop];
+                }
+                return old[prop];
+            }
+        });
     }
 })()
-
