@@ -37,6 +37,10 @@
         debugger: {
             amount: 10,
             within: 10000
+        },
+        debuggerThrow: {
+            amount: 10,
+            within: 10000
         }
     }
 
@@ -142,7 +146,9 @@
                 }
                 debugCount++;
                 if (debugCount > 100) {
-                    Originals.log("Debugger loop detected! Throwing error to stop execution");
+                    if (shouldLog("debuggerThrow")) {
+                        Originals.log("Debugger loop detected! Throwing error to stop execution");
+                    }
                     throw new Error("You bad!");
                 } else {
                     setTimeout(() => {
