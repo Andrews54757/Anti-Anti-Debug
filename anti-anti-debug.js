@@ -1,6 +1,8 @@
 !(() => {
     console.log("Anti-anti-debug loaded! Happy debugging!")
-
+    const Proxy = window.Proxy;
+    const Object = window.Object;
+    const Array = window.Array;
     /**
      * Save original methods before we override them
      */
@@ -130,16 +132,26 @@
     }, Originals.clear);
 
     window.Function.prototype.constructor = wrapFn((...args) => {
+        const originalFn = Originals.functionConstructor.apply(this, args);
         var fnContent = args[0];
         if (fnContent) {
             if (fnContent.includes('debugger')) { // An anti-debugger is attempting to stop debugging
                 if (shouldLog("debugger")) {
                     Originals.log("Prevented debugger");
                 }
-                args[0] = args[0].replaceAll("debugger", ""); // remove debugger statements
+                const newArgs = args.slice(0);
+                newArgs[0] = args[0].replaceAll("debugger", ""); // remove debugger statements
+                return new Proxy(Originals.functionConstructor.apply(this, newArgs),{
+                    get: function (target, prop) {
+                        if (prop === "toString") {
+                            return originalFn.toString.bind(originalFn);
+                        }
+                        return target[prop];
+                    }
+                });
             }
         }
-        return Originals.functionConstructor.apply(this, args);
+        return originalFn;
     }, Originals.functionConstructor);
 
     window.setInterval = wrapFn((...args) => {
@@ -174,7 +186,7 @@
             get: function (target, prop) {
                 const callMethods = ['apply', 'bind', 'call'];
                 if (callMethods.includes(prop)) {
-                    return target[prop];
+                    return target[prop].bind(target);
                 }
                 return old[prop];
             }
