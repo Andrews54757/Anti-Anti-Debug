@@ -131,6 +131,7 @@
         }
     }, Originals.clear);
 
+    let debugCount = 0;
     window.Function.prototype.constructor = wrapFn((...args) => {
         const originalFn = Originals.functionConstructor.apply(this, args);
         var fnContent = args[0];
@@ -138,6 +139,15 @@
             if (fnContent.includes('debugger')) { // An anti-debugger is attempting to stop debugging
                 if (shouldLog("debugger")) {
                     Originals.log("Prevented debugger");
+                }
+                debugCount++;
+                if (debugCount > 100) {
+                    Originals.log("Debugger loop detected! Throwing error to stop execution");
+                    throw new Error("You bad!");
+                } else {
+                    setTimeout(() => {
+                        debugCount--;
+                    }, 1);
                 }
                 const newArgs = args.slice(0);
                 newArgs[0] = args[0].replaceAll("debugger", ""); // remove debugger statements
@@ -186,7 +196,7 @@
             get: function (target, prop) {
                 const callMethods = ['apply', 'bind', 'call'];
                 if (callMethods.includes(prop)) {
-                    return target[prop].bind(target);
+                    return target[prop];
                 }
                 return typeof old[prop] === 'function' ? old[prop].bind(old) : old[prop];
             }
