@@ -188,7 +188,7 @@
                 if (callMethods.includes(prop)) {
                     return target[prop].bind(target);
                 }
-                return old[prop];
+                return typeof old[prop] === 'function' ? old[prop].bind(old) : old[prop];
             }
         });
     }
