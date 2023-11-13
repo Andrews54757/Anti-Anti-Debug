@@ -9,6 +9,7 @@
     const Originals = {
         createElement: document.createElement,
         log: console.log,
+        warn: console.warn,
         table: console.table,
         clear: console.clear,
         functionConstructor: window.Function.prototype.constructor,
@@ -62,7 +63,7 @@
         cutoff.current++;
 
         if (cutoff.current > cutoff.amount) {
-            Originals.log("Limit reached! Will now ignore " + type)
+            Originals.warn("Limit reached! Will now ignore " + type)
             cutoff.tripped = true;
             return false;
         }
@@ -125,13 +126,13 @@
 
     window.console.table = wrapFn((obj) => {
         if (shouldLog("table")) {
-            Originals.log("Redacted table");
+            Originals.warn("Redacted table");
         }
     }, Originals.table);
 
     window.console.clear = wrapFn(() => {
         if (shouldLog("table")) {
-            Originals.log("Prevented clear");
+            Originals.warn("Prevented clear");
         }
     }, Originals.clear);
 
@@ -142,12 +143,12 @@
         if (fnContent) {
             if (fnContent.includes('debugger')) { // An anti-debugger is attempting to stop debugging
                 if (shouldLog("debugger")) {
-                    Originals.log("Prevented debugger");
+                    Originals.warn("Prevented debugger");
                 }
                 debugCount++;
                 if (debugCount > 100) {
                     if (shouldLog("debuggerThrow")) {
-                        Originals.log("Debugger loop detected! Throwing error to stop execution");
+                        Originals.warn("Debugger loop detected! Throwing error to stop execution");
                     }
                     throw new Error("You bad!");
                 } else {
@@ -174,7 +175,7 @@
         const string = Originals.toString.apply(args[0]);
         // Regexp tests for https://github.com/theajack/disable-devtool
         if (/if.*;try.*=.*catch.*\(.*\).*finally.*==.*typeof/.test(string)) {
-            Originals.log("Prevented anti-debug interval (matched regexp)", {
+            Originals.warn("Prevented anti-debug interval (matched regexp)", {
                 fnString: string
             });
             return;
