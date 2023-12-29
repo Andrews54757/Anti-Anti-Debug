@@ -2,7 +2,7 @@
     "manifest_version": 3,
     "name": "Anti Anti Debug",
     "description": "Be able to use developer tools again",
-    "version": "1.0.5",
+    "version": "1.0.6",
     "author": "Andrew S",
     "icons": {
         "16": "debug-16.png",

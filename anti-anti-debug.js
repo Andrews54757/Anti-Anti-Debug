@@ -161,7 +161,7 @@
                 return new Proxy(Originals.functionConstructor.apply(this, newArgs),{
                     get: function (target, prop) {
                         if (prop === "toString") {
-                            return originalFn.toString.bind(originalFn);
+                            return originalFn.toString;
                         }
                         return target[prop];
                     }
@@ -205,7 +205,7 @@
                 if (callMethods.includes(prop)) {
                     return target[prop];
                 }
-                return typeof old[prop] === 'function' ? old[prop].bind(old) : old[prop];
+                return old[prop];
             }
         });
     }
