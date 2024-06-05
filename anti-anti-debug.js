@@ -171,18 +171,6 @@
         return originalFn;
     }, Originals.functionConstructor);
 
-    window.setInterval = wrapFn((...args) => {
-        const string = Originals.toString.apply(args[0]);
-        // Regexp tests for https://github.com/theajack/disable-devtool
-        if (/if.*;try.*=.*catch.*\(.*\).*finally.*==.*typeof/.test(string)) {
-            Originals.warn("Prevented anti-debug interval (matched regexp)", {
-                fnString: string
-            });
-            return;
-        }
-        return Originals.setInterval.apply(window, args);
-    }, Originals.setInterval);
-
     document.createElement = wrapFn((el, o) => {
         var string = el.toString();
         var element = Originals.createElement.apply(document, [string, o]);
